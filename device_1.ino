@@ -20,6 +20,7 @@
 #define LED_PIN 32 // Check connection of MQTT
 #define RELAY_PIN 33 // Pin for the relay
 #define DEVICE_ID "58c6dd67-3200-4bf0-8044-a851465edd02"
+#define COMMAND_FEEDBACK "smmic/user/commands/feedback"
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
@@ -102,6 +103,7 @@ void mqttTask(void *pvParameters) {
   client.setServer(MQTT_BROKER, MQTT_PORT);
 
   int counter = 0;
+  bool alertSent = false;
 
   while (true) {
     if (!client.connected()) {
@@ -143,12 +145,24 @@ void mqttTask(void *pvParameters) {
 
     char combinePayload[250];
     snprintf(combinePayload, sizeof(combinePayload), "soil_moisture;%s;%d;temperature:%.2f&humidity:%.2f%&soil_moisture:%d%&battery_level:%d", DEVICE_ID, timeClient.getEpochTime(), temperature, humidity, soilMoisturePercentage, batt_level);
-
+    Serial.println(interval);
     // Publish temperature, humidity, and soil moisture data
     // client.publish(MQTT_TOPIC_TEMPERATURE, tempPayload);
     // client.publish(MQTT_TOPIC_HUMIDITY, humPayload);
     // client.publish(MQTT_TOPIC_SOILMOISTURE, soilPayload);
 
+   
+
+    char lowMoistureAlert[250];
+    if( alertSent == false && soilMoisturePercentage < 20){
+        snprintf(lowMoistureAlert, sizeof(lowMoistureAlert), "%s;%d;42;temperature:%.2f&humidity:%.2f%&soil_moisture:%d%&battery_level:%d", DEVICE_ID, timeClient.getEpochTime(), temperature, humidity, soilMoisturePercentage, batt_level);
+        client.publish(ALERTS, lowMoistureAlert);
+        alertSent = true;
+    }
+    
+    if( alertSent == true && soilMoisturePercentage >= 70){
+       alertSent = false;
+    }
     if(counter == interval || counter > interval){
       client.publish(MQTT_TOPIC_COMBINE, combinePayload);
       counter = 0;
@@ -169,6 +183,7 @@ void mqttTask(void *pvParameters) {
 
 void subcribeCallBack( char* topic, byte* payload, unsigned int length){
   Serial.println("receive message");
+  char replyPayload[250];
 
   if(strcmp(topic, INTERVAL) == 0){
     String message = "";
@@ -178,6 +193,9 @@ void subcribeCallBack( char* topic, byte* payload, unsigned int length){
 
     int payloadInt = message.toInt();
     interval = payloadInt/5;
+ 
+    snprintf(replyPayload, sizeof(replyPayload), "%s;%s;%s", DEVICE_ID, message, INTERVAL);
+    client.publish(COMMAND_FEEDBACK, replyPayload);
   }
   if(strcmp (topic, SMMIC_IRRIGATION) == 0){
     String message = "";
@@ -187,6 +205,8 @@ void subcribeCallBack( char* topic, byte* payload, unsigned int length){
 
     int payloadInt = message.toInt();
     irrigation = payloadInt;
+    snprintf(replyPayload, sizeof(replyPayload), "%s;%s;%s", DEVICE_ID, message, SMMIC_IRRIGATION);
+    client.publish(COMMAND_FEEDBACK, replyPayload);
 
     Serial.println(irrigation);
   }
