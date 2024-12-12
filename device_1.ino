@@ -6,9 +6,9 @@
 #define SOIL_MOISTURE_PIN 34      // Soil moisture sensor pin
 #define DHTPIN 26                 // Pin connected to DHT11
 #define DHTTYPE DHT11             // DHT 11 sensor
-#define WIFI_SSID "JuarioFamily"       // Your hotspot SSID
-#define WIFI_PASSWORD "Tabud!0y1974"  // Your hotspot password
-#define MQTT_BROKER "192.168.1.20"  // Free broker
+#define WIFI_SSID "DITO"       // Your hotspot SSID
+#define WIFI_PASSWORD "gwapako123"  // Your hotspot password
+#define MQTT_BROKER "192.168.254.147"  // Free broker
 #define MQTT_PORT 1883
 // #define MQTT_TOPIC_TEMPERATURE "home/sensor/temperature"
 // #define MQTT_TOPIC_HUMIDITY "home/sensor/humidity"
@@ -25,7 +25,7 @@
 #include <WiFiUdp.h>
 
 // NTP server
-const char* ntpServer = "192.168.1.20";
+const char* ntpServer = "192.168.254.147";
 const int timeOffset = 0;
 const int updateInterval = 60000;
 
@@ -291,6 +291,7 @@ void relayControlTask(void *pvParameters) {
      
       
       bool flag = true;
+      irrigation = 1;
       do {
         int soilMoistureValue2 = analogRead(SOIL_MOISTURE_PIN);
         int soilMoisturePercentage2 = map(soilMoistureValue2, min_moisture, max_moisture, 100, 0);
@@ -300,7 +301,7 @@ void relayControlTask(void *pvParameters) {
         float temperature2 = dht.readTemperature();
         float humidity2 = dht.readHumidity();
 
-        if (soilMoisturePercentage2 > 70 ) {
+        if (soilMoisturePercentage2 > 70 || irrigation == 0 ) {
           digitalWrite(RELAY_PIN, LOW); // Close the relay (turn it off)
           Serial.println("Relay closed: Soil moisture sufficient");
           irrigation = 0;
